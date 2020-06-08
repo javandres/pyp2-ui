@@ -1,0 +1,25 @@
+.control-panel {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    max-width: 520px;
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    padding: 5px 5px;
+    margin: 10px;
+    font-size: 12px;
+    line-height: 2;
+    color: #6b6b76;
+    text-transform: uppercase;
+    outline: none;
+  }
+
+.info-table-cell{
+  font-size: 9px !important;
+  padding: 2px !important;
+}
+
+.info-table-cell-title{
+  font-size: 11px !important;
+  padding: 2px !important;
+}
