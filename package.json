@@ -2,6 +2,7 @@
   "name": "create-react-app",
   "version": "4.0.0",
   "private": true,
+
   "scripts": {
     "start": "PORT=3006 react-scripts start",
     "build": "react-scripts build",
@@ -36,5 +37,6 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  }
+  },
+  "homepage": "/pyp2/"
 }
