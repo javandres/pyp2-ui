@@ -61,7 +61,9 @@ import {BitmapLayer} from '@deck.gl/layers';
 import mapboxgl from 'mapbox-gl';
 import InfoPanel from './InfoPanel';
 import * as d3 from "d3";
-
+import * as d3Color from 'd3-color'
+import * as d3Interpolate from 'd3-interpolate'
+import * as d3ScaleChromatic from 'd3-scale-chromatic'
 // #import {MVTLayer} from '@deck.gl/geo-layers';
 
 // import {TileLayer} from '@deck.gl/geo-layers';
@@ -296,10 +298,31 @@ function colorScaleBK(x) {
   return COLOR_SCALE[i] || COLOR_SCALE[COLOR_SCALE.length - 1];
 }
 
-const linearScale = d3.scaleLinear().domain([-4, 9]).range([0, 1]);
+function getRGBValues(str) {
+  var vals = str.substring(str.indexOf('(') +1, str.length -1).split(', ');
+  return {
+    'r': parseInt(vals[0]),
+    'g': parseInt(vals[1]),
+    'b': parseInt(vals[2])
+  };
+}
+const linearScale = d3.scaleLinear().domain([0, 1]).range([0, 1]);
+const sequentialScale = d3.scaleSequential()
+  .domain([0, 1])
+  .interpolator(d3.interpolateViridis);
+
 function colorScale (x) {
-    const color = d3.color(d3.interpolateViridis(linearScale(x)));
-    return [color.r, color.g, color.b];
+    const color2 = d3.color(d3.interpolateViridis(sequentialScale(x)));
+    console.log(color2)
+    const color = sequentialScale(x)
+    console.log(d3.color(color))
+    //const arr =  getRGBValues(color)
+    const arr = d3.color(color)
+    //return [arr.r, arr.g, arr.b]
+    //return [color.r, color.g, color.b];
+    const res = [arr.r, arr.g, arr.b];
+    console.log(res)
+    return res
 }
 
 // function colorScale(x) {
@@ -473,12 +496,12 @@ class App extends Component {
       data : data,
       opacity: 1,
       stroked: true,
-      getLineWidth: 0.2,
+      getLineWidth: .5,
       filled: true,
       extruded: false,
       wireframe: true,
       getElevation: f => { if(f.properties.inIsochrone) return 150; else return 0} ,
-      getFillColor: f => { let color = colorScale(f.properties.windex); if(!this.filtered) return color; if(f.properties.inIsochrone) return [...color, 255]; else  return [...color, 0] },
+      getFillColor: f => { let color = colorScale(f.properties.InMovSos); if(!this.filtered) return color; if(f.properties.inIsochrone) return [...color, 255]; else  return [...color, 0] },
       //getFillColor: d => d.properties.inIsochrone ? [55, 205, 155] : [55, 205, 155,100],
       getLineColor: f => [69,4,87],
       pickable: true,
