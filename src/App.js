@@ -298,30 +298,16 @@ function colorScaleBK(x) {
   return COLOR_SCALE[i] || COLOR_SCALE[COLOR_SCALE.length - 1];
 }
 
-function getRGBValues(str) {
-  var vals = str.substring(str.indexOf('(') +1, str.length -1).split(', ');
-  return {
-    'r': parseInt(vals[0]),
-    'g': parseInt(vals[1]),
-    'b': parseInt(vals[2])
-  };
-}
-const linearScale = d3.scaleLinear().domain([0, 1]).range([0, 1]);
+
+
 const sequentialScale = d3.scaleSequential()
-  .domain([0, 1])
-  .interpolator(d3.interpolateViridis);
+  .domain([1, 0])
+  .interpolator(d3.interpolateYlGnBu);
 
 function colorScale (x) {
-    const color2 = d3.color(d3.interpolateViridis(sequentialScale(x)));
-    console.log(color2)
     const color = sequentialScale(x)
-    console.log(d3.color(color))
-    //const arr =  getRGBValues(color)
     const arr = d3.color(color)
-    //return [arr.r, arr.g, arr.b]
-    //return [color.r, color.g, color.b];
     const res = [arr.r, arr.g, arr.b];
-    console.log(res)
     return res
 }
 
@@ -711,7 +697,7 @@ render() {
             
           </div>
           
-          <InfoPanel data={selectedFeature} />      
+               
          
           
 
@@ -740,7 +726,7 @@ render() {
   
         )}   
         </DeckGL>
-        
+        <InfoPanel data={selectedFeature} /> 
       </main>
     </div>
   );
