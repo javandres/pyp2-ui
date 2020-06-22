@@ -12,11 +12,13 @@ import TableContainer from '@material-ui/core/TableContainer';
 import TableHead from '@material-ui/core/TableHead';
 import TableRow from '@material-ui/core/TableRow';
 import Paper from '@material-ui/core/Paper';
-import { Chip, IconButton } from '@material-ui/core';
+import { Chip, IconButton, Avatar } from '@material-ui/core';
 import DirectionsWalkIcon from '@material-ui/icons/DirectionsWalk';
 import DirectionsBikeIcon from '@material-ui/icons/DirectionsBike';
 import DirectionsBusIcon from '@material-ui/icons/DirectionsBus';
 import CancelIcon from '@material-ui/icons/Cancel';
+import * as d3 from "d3";
+
 const styles = theme => ({
     root: {
         width: '100%',
@@ -31,7 +33,15 @@ const styles = theme => ({
     }
 });   
 
+const sequentialScale = d3.scaleSequential()
+  .domain([1, 0])
+  .interpolator(d3.interpolateYlGnBu);
   
+// function getContrast50($hexcolor)
+// { 
+//   return (hexdec($hexcolor) > 0xffffff/2) ? 'white':'black'; 
+// }  
+
 export default class InfoPanel extends PureComponent {
 
   constructor(props){
@@ -74,7 +84,7 @@ export default class InfoPanel extends PureComponent {
           usouniq: this.props.data.usosuniq_w,
           area: Math.round(this.props.data.area_w / 1000000, 2),
           subi: this.props.data.subi_walk.toFixed(2),
-          icon: <DirectionsWalkIcon />
+          icon: <DirectionsWalkIcon style={{color: sequentialScale(this.props.data.subi_walk)  }} />
         },
         {
           subject: 'Cicleable', 
@@ -83,7 +93,7 @@ export default class InfoPanel extends PureComponent {
           usouniq: this.props.data.usouniq_b,
           area: Math.round(this.props.data.area_b / 1000000, 2),
           subi: this.props.data.subi_bike.toFixed(2),
-          icon: <DirectionsBikeIcon />
+          icon: <DirectionsBikeIcon style={{color: sequentialScale(this.props.data.subi_bike)  }} />
         },  
         {
           subject: 'T.Público', 
@@ -92,18 +102,21 @@ export default class InfoPanel extends PureComponent {
           usouniq: this.props.data.usouniq_tp,
           area: Math.round(this.props.data.area_tp / 1000000, 2 ),
           subi: this.props.data.subi_tpubl.toFixed(2),
-          icon: <DirectionsBusIcon />
+          icon: <DirectionsBusIcon style={{color: sequentialScale(this.props.data.subi_tpubl)  }} />
         }
       ];
     return (
       <Paper elevation={3} className="control-panel" >
         <IconButton className='closeInfoPanelBtn' onClick={this.handleClose} aria-label="delete" color="secondary">
-              <CancelIcon  size="small"/>
+              <CancelIcon  size="small" />
         </IconButton>
         <h3>
         
-        {showPanel}Indice de movilidad sustentable:
-          <Chip color="secondary" label={this.props.data.InMovSos.toFixed(2)} />
+        Indice de movilidad sustentable:
+        <br/>
+          <Chip avatar={<Avatar style={{color:'black' ,backgroundColor: sequentialScale(this.props.data.InMovSos)  }}> </Avatar>}
+                color='secondary'
+                label={this.props.data.InMovSos.toFixed(2)} />
               
     
         </h3>
@@ -133,7 +146,12 @@ export default class InfoPanel extends PureComponent {
                </TableCell>
                <TableCell className='info-table-cell' align="right">{row.cantuso}</TableCell>
                <TableCell className='info-table-cell' align="right">{row.usouniq}</TableCell>
-               <TableCell className='info-table-cell-subi' align="right"><Chip color="secondary" label={row.subi} /></TableCell>
+               <TableCell className='info-table-cell-subi' align="right">
+                 <Chip  
+                     color="primary" label={row.subi} 
+                     avatar={<Avatar style={{backgroundColor: sequentialScale(row.subi)  }}> </Avatar>}
+                 />
+                </TableCell>
             </TableRow>
            ))}
          </TableBody>

@@ -1,21 +1,12 @@
-# Create React App example
+# Proyecto Pies y Pedales 2
 
-## How to use
+## Visualizador de Índice de movilidad sustentable
 
-Download the example [or clone the repo](https://github.com/mui-org/material-ui):
-
-```sh
-curl https://codeload.github.com/mui-org/material-ui/tar.gz/master | tar -xz --strip=2 material-ui-master/examples/create-react-app
-cd create-react-app
-```
-
-Install it and run:
 
 ```sh
+git clone https://github.com/llactalab/pyp2-ui
+cd pyp2-ui
 npm install
-npm start
+npm run start
 ```
 
-## The idea behind the example
-
-This example demonstrates how you can use [Create React App](https://github.com/facebookincubator/create-react-app).

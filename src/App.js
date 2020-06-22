@@ -69,9 +69,9 @@ import mapboxgl from 'mapbox-gl';
 import InfoPanel from './components/InfoPanel';
 import SelectVariable from './components/SelectVariable';
 import * as d3 from "d3";
-import * as d3Color from 'd3-color'
-import * as d3Interpolate from 'd3-interpolate'
-import * as d3ScaleChromatic from 'd3-scale-chromatic'
+// import * as d3Color from 'd3-color'
+// import * as d3Interpolate from 'd3-interpolate'
+// import * as d3ScaleChromatic from 'd3-scale-chromatic'
 
 const drawerWidth = 340;
 
@@ -276,7 +276,7 @@ class App extends Component {
       selectedVariableMap:'InMovSos',
       selected3d:false,
       viewport:{
-        longitude: -79.009,
+        longitude: -79.020,
         latitude: -2.885,
         zoom: 12,
         minZoom: 0,
@@ -477,14 +477,14 @@ class App extends Component {
       data : this.state.hexaDataShow,
       opacity: 1,
       stroked: true,
-      getLineWidth: 0.5,
+      getLineWidth: 2,
       filled: true,
       extruded: this.state.selected3d,
       wireframe: true,
       elevationScale: 2.5,
       getElevation: f => { return  this.elevationScale( f.properties[ this.state.selectedVariableMap ]  ) } ,
       getFillColor: f => { let color = colorScale(f.properties[ this.state.selectedVariableMap ]); if(!this.filtered) return color; if(f.properties.inIsochrone) return [...color, 255]; else  return [...color, 0] },
-      getLineColor: f =>{ let color = colorScale(f.properties[ this.state.selectedVariableMap ]); if(!this.filtered) return color; if(f.properties.inIsochrone) return [...color, 255]; else  return [...color, 100] },
+      getLineColor: f =>{  let color = colorScale(f.properties[ this.state.selectedVariableMap ]); if(!this.filtered) return color; if(f.properties.inIsochrone) return [...color, 255]; else  return [...color, 100] }, //if(!this.state.filetered){ return [175,223,162]; }
       pickable: true,
       onHover: this._onHover,
       pickable: true,
@@ -573,7 +573,7 @@ render() {
           </Box>
         </Box>
         <Box padding={1}>
-          Proyecto Pies y Pedales  {loading}
+          Proyecto Pies y Pedales
           <Divider></Divider>  
           <Box fontWeight="fontWeightBold" fontSize={10} paddingTop={1}  color="#6b7385"> 
             Haz clic en el mapa para consultar el índice de movilidad sustantable calculado para cada hexágono, abajo puedes calcular las áreas de accesibilidad modificando el tiempo de viaje y el medio de transporte.
@@ -590,11 +590,6 @@ render() {
         <Paper className={classes.DrawerPaper}>
           <Box padding={1} >
             <Box fontWeight="fontWeightBold" fontSize={12} paddingTop={1}  >
-              {
-                this.state.loading
-                ? <LinearProgress  color="secondary" />
-                : <div />
-              }
               Visualización
               <IconButton onClick={this.reloadHexaData} aria-label="refresh" color="secondary">
                 <RefreshIcon  size="small"/>
@@ -602,10 +597,10 @@ render() {
             </Box>
             <Divider></Divider>
             
-            <SelectVariable
+            <SelectVariable 
               onChange={(value) => this.handleChangeVariable(value)}
             ></SelectVariable>
-            <FormControlLabel control={<Switch checked={this.state.selected3d} color="secondary" onChange={this.handleChange3D} />} label="Habilitar 3D" />
+            <FormControlLabel fontSize={8} paddingTop={1}  control={<Switch checked={this.state.selected3d} color="secondary" onChange={this.handleChange3D} />} label="Habilitar 3D" />
            </Box> 
         </Paper>     
         {/* <Tabs
@@ -641,6 +636,11 @@ render() {
         <Paper className={classes.DrawerPaper}>
           <Box padding={1} >
             <Box fontWeight="fontWeightBold" fontSize={12} paddingTop={1}  >
+              {
+                this.state.loading
+                ? <LinearProgress  color="secondary" />
+                : <div />
+              }
               Calcular accesibilidad
             </Box>
             <Divider></Divider>
