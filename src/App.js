@@ -36,10 +36,12 @@ import DriveEtaIcon from '@material-ui/icons/DriveEta';
 import DirectionsBusIcon from '@material-ui/icons/DirectionsBus';
 import DirectionsWalkIcon from '@material-ui/icons/DirectionsWalk';
 import BuildIcon from '@material-ui/icons/Build';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import LinearProgress from '@material-ui/core/LinearProgress';
 
 import Slider from '@material-ui/core/Slider';
 
-import { StaticMap, Marker } from 'react-map-gl';
+import { StaticMap, Marker, FlyToInterpolator } from 'react-map-gl';
 import ReactMapGL from 'react-map-gl';
 //import DeckGL from '@deck.gl/react';
 //import DeckGL from 'deck.gl';
@@ -368,7 +370,16 @@ class App extends Component {
       tabValue:0,
       selectedFeature:null,
       selectedVariableMap:'InMovSos',
-      selected3d:false
+      selected3d:false,
+      viewport:{
+        longitude: -79.009,
+        latitude: -2.9,
+        zoom: 13,
+        minZoom: 0,
+        maxZoom: 20,
+        pitch: 24,
+        bearing: 0
+      }
 
     };
     this.timeHandleChange = this.timeHandleChange.bind(this);
@@ -383,6 +394,21 @@ class App extends Component {
     this._effects = [lightingEffect];
   }  
   
+  _onViewportChange = viewport =>
+    this.setState({
+      viewport: {...this.state.viewport, ...viewport}
+    });
+
+  _goToViewport3d = () => {
+    this._onViewportChange({
+      zoom: 13,
+      transitionInterpolator: new FlyToInterpolator({speed: 1.2}),
+      transitionDuration: 'auto',
+      pitch:50,
+      bearing: -5
+    });
+  };
+
   componentDidMount() {
     this.setState({loading:false})
     this.loadHexGrid()
@@ -459,12 +485,13 @@ class App extends Component {
                 this.setState({hexaDataShow:hexData},
                   ()=>{
                     this.updateHexagonLayer(hexData);
+                    this.setState({loading:false})
                   }
                   );
 
                 
             });
-            this.setState({loading:false})
+            
           }else{
             alert("Error api")
             this.setState({loading:false})
@@ -478,6 +505,7 @@ class App extends Component {
   }
 
   _onMapLoad = () => {
+    this.setState({loading:true})
     const map = this._map;
     const deck = this._deck;
     map.addLayer(new MapboxLayer({id: hexagon_layer_id , deck}), 'water'  );
@@ -509,10 +537,13 @@ class App extends Component {
           'fill-extrusion-opacity': .9
       }
     }, firstLabelLayerId);
+    this.setState({loading:false})
 
   } 
 
   handleChange3D(event){
+    if(event.target.checked )
+      this._goToViewport3d();
     this.setState({
       selected3d:event.target.checked
     }, ()=>{
@@ -544,6 +575,7 @@ class App extends Component {
 
 
   updateHexagonLayer=(data)=>{
+    this.setState({loading:true})
     var hexaLayer = new GeoJsonLayer({
       id: hexagon_layer_id,
       data : this.state.hexaDataShow,
@@ -560,7 +592,7 @@ class App extends Component {
       getFillColor: f => { let color = colorScale(f.properties[ this.state.selectedVariableMap ]); if(!this.filtered) return color; if(f.properties.inIsochrone) return [...color, 255]; else  return [...color, 0] },
       //getFillColor: d => d.properties.inIsochrone ? [55, 205, 155] : [55, 205, 155,100],
       // getLineColor: f => [177,225,162],
-      getLineColor:f =>{ let color = colorScale(f.properties[ this.state.selectedVariableMap ]); if(!this.filtered) return color; if(f.properties.inIsochrone) return [...color, 255]; else  return [...color, 100] },
+      getLineColor: f =>{ let color = colorScale(f.properties[ this.state.selectedVariableMap ]); if(!this.filtered) return color; if(f.properties.inIsochrone) return [...color, 255]; else  return [...color, 100] },
       pickable: true,
       onHover: this._onHover,
       pickable: true,
@@ -570,6 +602,7 @@ class App extends Component {
       },
     })
     this.setState({hexaLayer})
+    this.setState({loading:false})
   }
 
   updateIsochroneLayer=(data)=>{
@@ -587,24 +620,9 @@ class App extends Component {
       getLineColor: [,251,152],
       getFillColor: [250,194,0],
       getLineWidth: 2,
-      opacity: 0.0,
-      // onHover: ({object, x, y}) => {
-      //   const tooltip = `${object}\nPopulation:`;
-      //   console.log(object)
-      //   /* Update tooltip
-      //     http://deck.gl/#/documentation/developer-guide/adding-interactivity?section=example-display-a-tooltip-for-hovered-object
-      //   */
-      // },
-      // onClick: (info,event) =>{
-      //   if(info){
-      //     // data[info.index].selected = true;
-      //     // hoveredObject+=10;
-      //     console.log(info)
-      //   }
-      // }
+      opacity: 0.0
     });
     this.setState({isochroneLayer})
-    
   }
 
 
@@ -624,7 +642,7 @@ class App extends Component {
 
 
 render() {
-  const {gl} = this.state;
+  const {gl, viewport} = this.state;
   const { classes } = this.props;
   //const { selectedFeature } = this.state;
   const { marker, hexaLayer, isochroneLayer, time, profile, loading, selectedFeature} = this.state;
@@ -642,6 +660,7 @@ render() {
   ];
   return (
     <div className={classes.root}>
+      
       <CssBaseline />
       {/* <AppBar position="absolute" className={classes.appBar,  classes.appBarShift} >
         <Toolbar className={classes.toolbar} >
@@ -661,7 +680,14 @@ render() {
           paper: classes.drawerPaper,
         }}
         anchor="left"
+
       >
+        {
+        this.state.loading
+        ? <LinearProgress  color="secondary" />
+        : <div />
+        }
+        
         <Box component="span" m={1} elevation={3} className={classes.LogoBox} >
           <Box fontWeight="fontWeightBold" fontSize={20}> 
             LlactaLAB
@@ -680,12 +706,17 @@ render() {
           </Box>
         </Box>
         <Paper className={classes.DrawerPaper}>
+          
+
           <Box padding={1} >
             <Box fontWeight="fontWeightBold" fontSize={12} paddingTop={1}  >
               Visualización
               <IconButton onClick={this.reloadHexaData} aria-label="refresh" color="secondary">
                 <RefreshIcon  size="small"/>
               </IconButton>
+              
+
+
             </Box>
             <Divider></Divider>
             <SelectVariable
@@ -769,12 +800,14 @@ render() {
         
       </Drawer>
       <main className={classes.content}>
+      
         <div className={classes.appBarSpacer} />
+        
         <DeckGL 
             ref={ref => {
               this._deck = ref && ref.deck;
             }}
-            initialViewState={INITIAL_VIEW_STATE} 
+            initialViewState={viewport} 
             ContextProvider={MapContext.Provider} 
             controller={true}
             layers= {layers}
