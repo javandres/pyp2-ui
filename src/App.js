@@ -16,6 +16,8 @@ import MenuIcon from '@material-ui/icons/Menu';
 import Paper from '@material-ui/core/Paper';
 import Box from '@material-ui/core/Box';
 import Button from '@material-ui/core/Button';
+import FormControlLabel from '@material-ui/core/FormControlLabel';
+import Switch from '@material-ui/core/Switch';
 import TextField from '@material-ui/core/TextField';
 import FormControl from '@material-ui/core/FormControl';
 import InputLabel from '@material-ui/core/InputLabel';
@@ -25,7 +27,7 @@ import ToggleButton from '@material-ui/lab/ToggleButton';
 import ToggleButtonGroup from '@material-ui/lab/ToggleButtonGroup';
 import Tabs from '@material-ui/core/Tabs';
 import Tab from '@material-ui/core/Tab';
-
+import RefreshIcon from '@material-ui/icons/Refresh';
 import NotificationsIcon from '@material-ui/icons/Notifications';
 import ExploreIcon from '@material-ui/icons/Explore';
 import SearchIcon from '@material-ui/icons/Search';
@@ -53,13 +55,17 @@ import OpenRouteService from './lib/openRouteService';
 import Pyp2Service from './lib/pyp2Service';
 import Utils from './lib/utils';
 
-import { PolygonLayer, GeoJsonLayer } from "deck.gl";
+import { PolygonLayer, GeoJsonLayer, LightingEffect, AmbientLight } from "deck.gl";
+
+import { _SunLight as SunLight} from '@deck.gl/core';
+
 import {MapboxLayer} from '@deck.gl/mapbox';
 import {TileLayer, MVTLayer } from '@deck.gl/geo-layers';
 import {BitmapLayer} from '@deck.gl/layers';
 
 import mapboxgl from 'mapbox-gl';
-import InfoPanel from './InfoPanel';
+import InfoPanel from './components/InfoPanel';
+import SelectVariable from './components/SelectVariable';
 import * as d3 from "d3";
 import * as d3Color from 'd3-color'
 import * as d3Interpolate from 'd3-interpolate'
@@ -299,6 +305,18 @@ function colorScaleBK(x) {
 }
 
 
+const ambientLight = new AmbientLight({
+  color: [255, 255, 255],
+  intensity: 1.0
+});
+
+const dirLight = new SunLight({
+  timestamp: Date.UTC(2019, 7, 1, 22),
+  color: [255, 255, 255],
+  intensity: 1.0,
+  _shadow: true
+});
+
 
 const sequentialScale = d3.scaleSequential()
   .domain([1, 0])
@@ -341,17 +359,28 @@ class App extends Component {
       layers:[],
       hexaLayer:null,
       hexaData:[],
+      hexaDataShow:[],
       isochroneLayer:null,
       time:10,
       profile:"pedestrian",
       hexgrid:null,
       loading:true,
       tabValue:0,
-      selectedFeature:null
+      selectedFeature:null,
+      selectedVariableMap:'InMovSos',
+      selected3d:false
+
     };
     this.timeHandleChange = this.timeHandleChange.bind(this);
     this.timeHandleChangeCommit = this.timeHandleChangeCommit.bind(this);
     this.tabHandleChangeCommit = this.tabHandleChangeCommit.bind(this);
+    this.handleChangeVariable = this.handleChangeVariable.bind(this);
+    this.handleChange3D = this.handleChange3D.bind(this);
+    this.reloadHexaData = this.reloadHexaData.bind(this);
+
+    const lightingEffect = new LightingEffect({ambientLight, dirLight});
+    lightingEffect.shadowColor = [0, 0, 0, 0.5];
+    this._effects = [lightingEffect];
   }  
   
   componentDidMount() {
@@ -403,6 +432,7 @@ class App extends Component {
         if(res){
           
           this.setState({hexaData:res.features});
+          this.setState({hexaDataShow:res.features});
           this.updateHexagonLayer(res.features) 
           this.setState({loading:false})
         }
@@ -426,7 +456,13 @@ class App extends Component {
                 this.updateIsochroneLayer(polygonData)
                 const hexData = this.utils.intersecHexagonsByIsochrone( this.state.hexaData, polygonData )
                 this.filtered=true;
-                this.updateHexagonLayer(hexData);
+                this.setState({hexaDataShow:hexData},
+                  ()=>{
+                    this.updateHexagonLayer(hexData);
+                  }
+                  );
+
+                
             });
             this.setState({loading:false})
           }else{
@@ -475,27 +511,62 @@ class App extends Component {
     }, firstLabelLayerId);
 
   } 
+
+  handleChange3D(event){
+    this.setState({
+      selected3d:event.target.checked
+    }, ()=>{
+      this.updateHexagonLayer(this.state.hexaData);
+    })
+  }
  
+  handleChangeVariable(value){
+    this.setState({hexaLayer:null})
+    this.setState({
+      selectedVariableMap:value
+    }, ()=>{
+      this.updateHexagonLayer(this.state.hexaData);
+    })
+    
+  }
+
+  reloadHexaData(){
+    this.filtered = false;
+    this.setState({ hexaDataShow: this.state.hexaData }, 
+      ()=>{this.updateHexagonLayer( this.state.hexaDataShow)})
+    
+  }
+
+  elevationScale =d3.scalePow()
+  .exponent(2.5)
+  .domain([0, 1])
+  .range([0, 200]);
+
+
   updateHexagonLayer=(data)=>{
     var hexaLayer = new GeoJsonLayer({
       id: hexagon_layer_id,
-      data : data,
+      data : this.state.hexaDataShow,
       opacity: 1,
       stroked: true,
-      getLineWidth: .5,
+      getLineWidth: 0.5,
       filled: true,
-      extruded: false,
+      extruded: this.state.selected3d,
       wireframe: true,
-      getElevation: f => { if(f.properties.inIsochrone) return 150; else return 0} ,
-      getFillColor: f => { let color = colorScale(f.properties.InMovSos); if(!this.filtered) return color; if(f.properties.inIsochrone) return [...color, 255]; else  return [...color, 0] },
+      elevationScale: 2.5,
+      // getElevation: f => { if(f.properties.inIsochrone) return 150; else return 0} ,
+      getElevation: f => { return  this.elevationScale( f.properties[ this.state.selectedVariableMap ]  ) } ,
+      // getElevation: f => { return  f.properties[ this.state.selectedVariableMap ] *1 } ,
+      getFillColor: f => { let color = colorScale(f.properties[ this.state.selectedVariableMap ]); if(!this.filtered) return color; if(f.properties.inIsochrone) return [...color, 255]; else  return [...color, 0] },
       //getFillColor: d => d.properties.inIsochrone ? [55, 205, 155] : [55, 205, 155,100],
-      getLineColor: f => [69,4,87],
+      // getLineColor: f => [177,225,162],
+      getLineColor:f =>{ let color = colorScale(f.properties[ this.state.selectedVariableMap ]); if(!this.filtered) return color; if(f.properties.inIsochrone) return [...color, 255]; else  return [...color, 100] },
       pickable: true,
       onHover: this._onHover,
       pickable: true,
       transitions: {
         // transition with a duration of 3000ms
-        getFillColor: 1200,
+        getFillColor: 2000,
       },
     })
     this.setState({hexaLayer})
@@ -593,11 +664,13 @@ render() {
       >
         <Box component="span" m={1} elevation={3} className={classes.LogoBox} >
           <Box fontWeight="fontWeightBold" fontSize={20}> 
-            <ExploreIcon/> LlactaLAB
+            LlactaLAB
           </Box>   
           <Box fontWeight="fontWeightBold" fontSize={13} paddingLeft={1} marginTop={1} color="#6b7385"> 
             ciudades sustentables
+           
           </Box>
+          
         </Box>
         <Box padding={1}>
           Proyecto Pies y Pedales  {loading}
@@ -606,7 +679,22 @@ render() {
             Haz clic en el mapa para consultar el índice de movilidad sustantable calculado para cada hexágono, abajo puedes calcular las áreas de accesibilidad modificando el tiempo de viaje y el medio de transporte.
           </Box>
         </Box>
+        <Paper className={classes.DrawerPaper}>
+          <Box padding={1} >
+            <Box fontWeight="fontWeightBold" fontSize={12} paddingTop={1}  >
+              Visualización
+              <IconButton onClick={this.reloadHexaData} aria-label="refresh" color="secondary">
+                <RefreshIcon  size="small"/>
+              </IconButton>
+            </Box>
+            <Divider></Divider>
+            <SelectVariable
+              onChange={(value) => this.handleChangeVariable(value)}
+            ></SelectVariable>
+            <FormControlLabel control={<Switch checked={this.state.selected3d} color="secondary" onChange={this.handleChange3D} />} label="Habilitar 3D" />
 
+           </Box> 
+        </Paper>     
         {/* <Tabs
           indicatorColor="primary"
           textColor="primary"
@@ -678,6 +766,7 @@ render() {
             </Button>
           </Box>
         </Paper>
+        
       </Drawer>
       <main className={classes.content}>
         <div className={classes.appBarSpacer} />
@@ -708,6 +797,7 @@ render() {
               offsetLeft={-25}
               draggable
               onDragEnd={this._onMarkerDragEnd}
+              effects={this._effects}
             >
               <Pin size={50} />
             </Marker>
