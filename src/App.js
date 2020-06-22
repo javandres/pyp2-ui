@@ -16,6 +16,8 @@ import MenuIcon from '@material-ui/icons/Menu';
 import Paper from '@material-ui/core/Paper';
 import Box from '@material-ui/core/Box';
 import Button from '@material-ui/core/Button';
+import FormControlLabel from '@material-ui/core/FormControlLabel';
+import Switch from '@material-ui/core/Switch';
 import TextField from '@material-ui/core/TextField';
 import FormControl from '@material-ui/core/FormControl';
 import InputLabel from '@material-ui/core/InputLabel';
@@ -25,7 +27,7 @@ import ToggleButton from '@material-ui/lab/ToggleButton';
 import ToggleButtonGroup from '@material-ui/lab/ToggleButtonGroup';
 import Tabs from '@material-ui/core/Tabs';
 import Tab from '@material-ui/core/Tab';
-
+import RefreshIcon from '@material-ui/icons/Refresh';
 import NotificationsIcon from '@material-ui/icons/Notifications';
 import ExploreIcon from '@material-ui/icons/Explore';
 import SearchIcon from '@material-ui/icons/Search';
@@ -34,10 +36,12 @@ import DriveEtaIcon from '@material-ui/icons/DriveEta';
 import DirectionsBusIcon from '@material-ui/icons/DirectionsBus';
 import DirectionsWalkIcon from '@material-ui/icons/DirectionsWalk';
 import BuildIcon from '@material-ui/icons/Build';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import LinearProgress from '@material-ui/core/LinearProgress';
 
 import Slider from '@material-ui/core/Slider';
 
-import { StaticMap, Marker } from 'react-map-gl';
+import { StaticMap, Marker, FlyToInterpolator } from 'react-map-gl';
 import ReactMapGL from 'react-map-gl';
 //import DeckGL from '@deck.gl/react';
 //import DeckGL from 'deck.gl';
@@ -47,29 +51,27 @@ import {_MapContext as MapContext, NavigationControl} from 'react-map-gl';
 
 
 import Pin from './components/pin';
-
+import escala from './components/escala.png'
 
 import OpenRouteService from './lib/openRouteService';
 import Pyp2Service from './lib/pyp2Service';
 import Utils from './lib/utils';
 
-import { PolygonLayer, GeoJsonLayer } from "deck.gl";
+import { PolygonLayer, GeoJsonLayer, LightingEffect, AmbientLight } from "deck.gl";
+
+import { _SunLight as SunLight} from '@deck.gl/core';
+
 import {MapboxLayer} from '@deck.gl/mapbox';
 import {TileLayer, MVTLayer } from '@deck.gl/geo-layers';
 import {BitmapLayer} from '@deck.gl/layers';
 
 import mapboxgl from 'mapbox-gl';
-import InfoPanel from './InfoPanel';
+import InfoPanel from './components/InfoPanel';
+import SelectVariable from './components/SelectVariable';
 import * as d3 from "d3";
-
-// #import {MVTLayer} from '@deck.gl/geo-layers';
-
-// import {TileLayer} from '@deck.gl/geo-layers';
-// import {VectorTile} from '@mapbox/vector-tile';
-// import Protobuf from 'pbf';
-
-
-// Data to be used by the POLYLayer
+import * as d3Color from 'd3-color'
+import * as d3Interpolate from 'd3-interpolate'
+import * as d3ScaleChromatic from 'd3-scale-chromatic'
 
 const drawerWidth = 340;
 
@@ -104,7 +106,18 @@ const PrettoSlider = withStyles({
 })(Slider);
 
 const useStyles = theme => ({
- 
+  '@global': {
+    '*::-webkit-scrollbar': {
+      width: '0.4em'
+    },
+    '*::-webkit-scrollbar-track': {
+      '-webkit-box-shadow': 'inset 0 0 6px rgba(0,0,0,0.00)'
+    },
+    '*::-webkit-scrollbar-thumb': {
+      backgroundColor: 'rgba(255,255,255,.2)',
+      outline: '1px solid slategrey'
+    }
+  },
   root: {
     display: 'flex',
   },
@@ -206,110 +219,30 @@ const MAP_STYLE = 'mapbox://styles/uberdata/cjoqbbf6l9k302sl96tyvka09'
 //const MAP_STYLE = "mapbox://styles/jaavandrex/ck8yu6ii700m91ildfw511cwq"
 
 const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoiamFhdmFuZHJleCIsImEiOiJjanRoOW9ycm8yYzU3NDNvOTRiMWNjMXNpIn0.Kpr0kyOLSm-kcLcTn0DY9Q';
-const INITIAL_VIEW_STATE = {
-  longitude: -79.009,
-  latitude: -2.9,
-  zoom: 14,
-  minZoom: 0,
-  maxZoom: 20,
-  pitch: 0,
-  bearing: 0
-};
-//ORANGE
-const COLOR_SCALE_ORANGE = [
-  // negative
-  [65, 182, 196],
-  [127, 205, 187],
-  [199, 233, 180],
-  [237, 248, 177],
-  // positive
-  [255, 255, 204],
-  [255, 237, 160],
-  [254, 217, 118],
-  [254, 178, 76],
-  [253, 141, 60],
-  [252, 78, 42],
-  [227, 26, 28],
-  [189, 0, 38],
-  [128, 0, 38]
-];
 
-const COLOR_SCALE_BLUE = [
-  // negative
-  [65, 182, 196],
-  [127, 205, 187],
-  [199, 233, 180],
-  [237, 248, 177],
-  // positive
-  [255, 247, 251],
-  [236, 231, 242],
-  [208, 209, 230],
-  [166, 189, 219],
-  [116, 169, 207],
-  [54, 144, 192],
-  [5, 112, 176],
-  [4, 90, 141],
-  [2, 56, 88]
-];
-const COLOR_SCALE_S = [
-  // negative
-  [65, 182, 196],
-  [127, 205, 187],
-  [199, 233, 180],
-  [237, 248, 177],
-  // positive
-  [213, 62, 79],
-  [244, 109, 67],
-  [253, 174, 97],
-  [254, 224, 139],
-  [255, 255, 191],
-  [230, 245, 152],
-  [171, 221, 164],
-  [102, 194, 165],
-  [50, 136, 189]
-];
+const ambientLight = new AmbientLight({
+  color: [255, 255, 255],
+  intensity: 1.0
+});
 
-const COLOR_SCALE = [
-  [65, 182, 196],
-  [127, 205, 187],
-  [199, 233, 180],
-  [237, 248, 177],
-
-  [215, 48, 39],
-  [244, 109, 67],
-  [253, 174, 97],
-  [254, 224, 139],
-  [255, 255, 191],
-  [217, 239, 139],
-  [166, 217, 106],
-  [102, 189, 9],
-  [26, 152, 80]
-];
+const dirLight = new SunLight({
+  timestamp: Date.UTC(2019, 7, 1, 22),
+  color: [255, 255, 255],
+  intensity: 1.0,
+  _shadow: true
+});
 
 
-function colorScaleBK(x) {
-  const i = Math.round(x * 9) + 4;
-  console.log("x="+x+" i="+i)
-  if (x < 0) {
-    return COLOR_SCALE[i] || COLOR_SCALE[0];
-  }
-  return COLOR_SCALE[i] || COLOR_SCALE[COLOR_SCALE.length - 1];
-}
+const sequentialScale = d3.scaleSequential()
+  .domain([1, 0])
+  .interpolator(d3.interpolateYlGnBu);
 
-const linearScale = d3.scaleLinear().domain([-4, 9]).range([0, 1]);
 function colorScale (x) {
-    const color = d3.color(d3.interpolateViridis(linearScale(x)));
-    return [color.r, color.g, color.b];
+    const color = sequentialScale(x)
+    const arr = d3.color(color)
+    const res = [arr.r, arr.g, arr.b];
+    return res
 }
-
-// function colorScale(x) {
-//   const i = Math.round(x * 7) + 4;
-//   let color = []
-//   if (x < 0) {
-//     return color = COLOR_SCALE[i] || COLOR_SCALE[0];
-//   }
-//   return COLOR_SCALE[i] || COLOR_SCALE[COLOR_SCALE.length - 1];
-// }
 
 const hexagon_layer_id = "hexgrid_geojson";
 const isochrone_layer_id = "isochrone";
@@ -332,19 +265,55 @@ class App extends Component {
       layers:[],
       hexaLayer:null,
       hexaData:[],
+      hexaDataShow:[],
       isochroneLayer:null,
       time:10,
       profile:"pedestrian",
       hexgrid:null,
       loading:true,
       tabValue:0,
-      selectedFeature:null
+      selectedFeature:null,
+      selectedVariableMap:'InMovSos',
+      selected3d:false,
+      viewport:{
+        longitude: -79.009,
+        latitude: -2.885,
+        zoom: 12,
+        minZoom: 0,
+        maxZoom: 20,
+        pitch: 10,
+        bearing: 0
+      }
+
     };
     this.timeHandleChange = this.timeHandleChange.bind(this);
     this.timeHandleChangeCommit = this.timeHandleChangeCommit.bind(this);
     this.tabHandleChangeCommit = this.tabHandleChangeCommit.bind(this);
+    this.handleChangeVariable = this.handleChangeVariable.bind(this);
+    this.handleChange3D = this.handleChange3D.bind(this);
+    this.reloadHexaData = this.reloadHexaData.bind(this);
+
+    const lightingEffect = new LightingEffect({ambientLight, dirLight});
+    lightingEffect.shadowColor = [0, 0, 0, 0.5];
+    this._effects = [lightingEffect];
   }  
   
+  _onViewportChange = viewport =>
+    this.setState({
+      viewport: {...this.state.viewport, ...viewport}
+    });
+
+  _goToViewport3d = () => {
+    this._onViewportChange({
+      latitude: -2.9,
+      zoom: 13,
+      transitionInterpolator: new FlyToInterpolator({speed: 1.2}),
+      transitionDuration: 'auto',
+      pitch:50,
+      bearing: -5
+    });
+  };
+
   componentDidMount() {
     this.setState({loading:false})
     this.loadHexGrid()
@@ -394,6 +363,7 @@ class App extends Component {
         if(res){
           
           this.setState({hexaData:res.features});
+          this.setState({hexaDataShow:res.features});
           this.updateHexagonLayer(res.features) 
           this.setState({loading:false})
         }
@@ -417,9 +387,13 @@ class App extends Component {
                 this.updateIsochroneLayer(polygonData)
                 const hexData = this.utils.intersecHexagonsByIsochrone( this.state.hexaData, polygonData )
                 this.filtered=true;
-                this.updateHexagonLayer(hexData);
+                this.setState({hexaDataShow:hexData},
+                  ()=>{
+                    this.updateHexagonLayer(hexData);
+                    this.setState({loading:false})
+                  }
+                  );
             });
-            this.setState({loading:false})
           }else{
             alert("Error api")
             this.setState({loading:false})
@@ -433,6 +407,7 @@ class App extends Component {
   }
 
   _onMapLoad = () => {
+    this.setState({loading:true})
     const map = this._map;
     const deck = this._deck;
     map.addLayer(new MapboxLayer({id: hexagon_layer_id , deck}), 'water'  );
@@ -448,9 +423,6 @@ class App extends Component {
       'minzoom': 15,
       'paint': {
           'fill-extrusion-color': '#131c29',
-
-          // use an 'interpolate' expression to add a smooth transition effect to the
-          // buildings as the user zooms in
           'fill-extrusion-height': [
               "interpolate", ["linear"], ["zoom"],
               15, 0,
@@ -464,32 +436,64 @@ class App extends Component {
           'fill-extrusion-opacity': .9
       }
     }, firstLabelLayerId);
+    this.setState({loading:false})
 
   } 
+
+  handleChange3D(event){
+    if(event.target.checked )
+      this._goToViewport3d();
+    this.setState({
+      selected3d:event.target.checked
+    }, ()=>{
+      this.updateHexagonLayer(this.state.hexaData);
+    })
+  }
  
+  handleChangeVariable(value){
+    this.setState({hexaLayer:null})
+    this.setState({
+      selectedVariableMap:value
+    }, ()=>{
+      this.updateHexagonLayer(this.state.hexaData);
+    })
+  }
+
+  reloadHexaData(){
+    this.filtered = false;
+    this.setState({ hexaDataShow: this.state.hexaData }, 
+      ()=>{this.updateHexagonLayer( this.state.hexaDataShow)})
+  }
+
+  elevationScale =d3.scalePow()
+  .exponent(2.5)
+  .domain([0, 1])
+  .range([0, 200]);
+
   updateHexagonLayer=(data)=>{
+    this.setState({loading:true})
     var hexaLayer = new GeoJsonLayer({
       id: hexagon_layer_id,
-      data : data,
+      data : this.state.hexaDataShow,
       opacity: 1,
       stroked: true,
-      getLineWidth: 0.2,
+      getLineWidth: 0.5,
       filled: true,
-      extruded: false,
+      extruded: this.state.selected3d,
       wireframe: true,
-      getElevation: f => { if(f.properties.inIsochrone) return 150; else return 0} ,
-      getFillColor: f => { let color = colorScale(f.properties.windex); if(!this.filtered) return color; if(f.properties.inIsochrone) return [...color, 255]; else  return [...color, 0] },
-      //getFillColor: d => d.properties.inIsochrone ? [55, 205, 155] : [55, 205, 155,100],
-      getLineColor: f => [69,4,87],
+      elevationScale: 2.5,
+      getElevation: f => { return  this.elevationScale( f.properties[ this.state.selectedVariableMap ]  ) } ,
+      getFillColor: f => { let color = colorScale(f.properties[ this.state.selectedVariableMap ]); if(!this.filtered) return color; if(f.properties.inIsochrone) return [...color, 255]; else  return [...color, 0] },
+      getLineColor: f =>{ let color = colorScale(f.properties[ this.state.selectedVariableMap ]); if(!this.filtered) return color; if(f.properties.inIsochrone) return [...color, 255]; else  return [...color, 100] },
       pickable: true,
       onHover: this._onHover,
       pickable: true,
       transitions: {
-        // transition with a duration of 3000ms
-        getFillColor: 1200,
+        getFillColor: 2000,
       },
     })
     this.setState({hexaLayer})
+    this.setState({loading:false})
   }
 
   updateIsochroneLayer=(data)=>{
@@ -507,44 +511,21 @@ class App extends Component {
       getLineColor: [,251,152],
       getFillColor: [250,194,0],
       getLineWidth: 2,
-      opacity: 0.0,
-      // onHover: ({object, x, y}) => {
-      //   const tooltip = `${object}\nPopulation:`;
-      //   console.log(object)
-      //   /* Update tooltip
-      //     http://deck.gl/#/documentation/developer-guide/adding-interactivity?section=example-display-a-tooltip-for-hovered-object
-      //   */
-      // },
-      // onClick: (info,event) =>{
-      //   if(info){
-      //     // data[info.index].selected = true;
-      //     // hoveredObject+=10;
-      //     console.log(info)
-      //   }
-      // }
+      opacity: 0.0
     });
     this.setState({isochroneLayer})
-    
   }
 
 
   _onClick = event => {
-    // event.x and event.y hold the clicked x and y coordinates in pixels
-    // You can pass those coordinates to React Map GL's queryRenderedFeatures
-    // to query any desired layers rendered there.
-    // Make sure you create the ref on InteractiveMap or StaticMap
-    // const features = this.map.queryRenderedFeatures([event.x, event.y], {
-    //   layers: [isochrone_layer_id]
-    // });
     if(event && event.object && event.object.properties){
       this.setState({selectedFeature:event.object.properties})
     }
-    
   };
 
 
 render() {
-  const {gl} = this.state;
+  const {gl, viewport} = this.state;
   const { classes } = this.props;
   //const { selectedFeature } = this.state;
   const { marker, hexaLayer, isochroneLayer, time, profile, loading, selectedFeature} = this.state;
@@ -582,9 +563,10 @@ render() {
         }}
         anchor="left"
       >
+       
         <Box component="span" m={1} elevation={3} className={classes.LogoBox} >
           <Box fontWeight="fontWeightBold" fontSize={20}> 
-            <ExploreIcon/> LlactaLAB
+            LlactaLAB
           </Box>   
           <Box fontWeight="fontWeightBold" fontSize={13} paddingLeft={1} marginTop={1} color="#6b7385"> 
             ciudades sustentables
@@ -596,8 +578,36 @@ render() {
           <Box fontWeight="fontWeightBold" fontSize={10} paddingTop={1}  color="#6b7385"> 
             Haz clic en el mapa para consultar el índice de movilidad sustantable calculado para cada hexágono, abajo puedes calcular las áreas de accesibilidad modificando el tiempo de viaje y el medio de transporte.
           </Box>
+          <Box fontWeight="fontWeightBold" fontSize={10} paddingTop={1}  color="#6b7385"> 
+              <img src={escala} height='15' width='100%'/>
+              <div style={ {display:'flex'} }>
+                <p style={{width:'50%', margin:'0'} } > 0 - Bajo</p>
+                <p style={{width:'50%', margin:'0', textAlign:'right'} } >Alto - 1</p>
+              </div>  
+          </Box>
+          
         </Box>
-
+        <Paper className={classes.DrawerPaper}>
+          <Box padding={1} >
+            <Box fontWeight="fontWeightBold" fontSize={12} paddingTop={1}  >
+              {
+                this.state.loading
+                ? <LinearProgress  color="secondary" />
+                : <div />
+              }
+              Visualización
+              <IconButton onClick={this.reloadHexaData} aria-label="refresh" color="secondary">
+                <RefreshIcon  size="small"/>
+              </IconButton>
+            </Box>
+            <Divider></Divider>
+            
+            <SelectVariable
+              onChange={(value) => this.handleChangeVariable(value)}
+            ></SelectVariable>
+            <FormControlLabel control={<Switch checked={this.state.selected3d} color="secondary" onChange={this.handleChange3D} />} label="Habilitar 3D" />
+           </Box> 
+        </Paper>     
         {/* <Tabs
           indicatorColor="primary"
           textColor="primary"
@@ -635,16 +645,15 @@ render() {
             </Box>
             <Divider></Divider>
             <div>
-            <Box color="#6b7385" fontSize={12} paddingTop={1} fontWeight="fontWeightBold">
-              Ubicacción: 
-              <Pin size={12} />
-            </Box>
-            <Box fontWeight="fontWeightBold" fontSize={12} paddingLeft={1} marginTop={1} marginBottom={1} color="#6b7385"> 
-              Lat: { Math.round(marker.latitude * 1000) / 1000 }
-              <span> / </span>
-              Lon: { Math.round(marker.longitude * 1000) / 1000 }
-            </Box>
-              
+              <Box color="#6b7385" fontSize={12} paddingTop={1} fontWeight="fontWeightBold">
+                Ubicacción: 
+                <Pin size={12} />
+              </Box>
+              <Box fontWeight="fontWeightBold" fontSize={12} paddingLeft={1} marginTop={1} marginBottom={1} color="#6b7385"> 
+                Lat: { Math.round(marker.latitude * 1000) / 1000 }
+                <span> / </span>
+                Lon: { Math.round(marker.longitude * 1000) / 1000 }
+              </Box>
             </div>
             Profile
             <ButtonGroup size="small" variant="contained" color="secondary" aria-label="contained primary button group" fullWidth>
@@ -652,7 +661,6 @@ render() {
               <Button onClick={(e, prof = "bicycle")=> this.profileChangeHandle(e, prof)} className={profile=='bicycle' && classes.SelectedTypeButton} startIcon={<DirectionsBikeIcon />}></Button>
               <Button onClick={(e, prof = "bus")=> this.profileChangeHandle(e, prof)} className={profile=='bus' && classes.SelectedTypeButton} startIcon={<DirectionsBusIcon />}></Button>
             </ButtonGroup>
-
             <Box color="#6b7385" fontWeight="fontWeightBold" fontSize={12} paddingLeft={1} marginTop={3} marginBottom={1}> 
               Tiempo de recorrido ({time} minutos) 
               <PrettoSlider valueLabelDisplay="auto" aria-label="pretto slider" value={time} min={1} max={120}  onChange={this.timeHandleChange} onChangeCommitted={this.timeHandleChangeCommit}/>
@@ -676,22 +684,16 @@ render() {
             ref={ref => {
               this._deck = ref && ref.deck;
             }}
-            initialViewState={INITIAL_VIEW_STATE} 
+            initialViewState={viewport} 
             ContextProvider={MapContext.Provider} 
             controller={true}
             layers= {layers}
             onWebGLInitialized={this._onWebGLInitialized}
             onClick={this._onClick}
         >
-          <div style={{ position: "absolute", right: 30, top: 100 }}>
+          <div style={{ position: "absolute", right: 30, top: 15 }}>
             <NavigationControl />
-            
           </div>
-          
-          <InfoPanel data={selectedFeature} />      
-         
-          
-
           <Marker
               longitude={marker.longitude}
               latitude={marker.latitude}
@@ -699,25 +701,23 @@ render() {
               offsetLeft={-25}
               draggable
               onDragEnd={this._onMarkerDragEnd}
+              effects={this._effects}
             >
               <Pin size={50} />
-            </Marker>
-
-         {gl && (
-          <StaticMap
-            ref={ref => {
-              this._map = ref && ref.getMap();
-            }}
-            gl={gl}
-            mapStyle={MAP_STYLE}
-            mapboxApiAccessToken={MAPBOX_ACCESS_TOKEN}
-            onLoad={this._onMapLoad}
-            
-          />
-  
-        )}   
+          </Marker>
+          {gl && (
+            <StaticMap
+              ref={ref => {
+                this._map = ref && ref.getMap();
+              }}
+              gl={gl}
+              mapStyle={MAP_STYLE}
+              mapboxApiAccessToken={MAPBOX_ACCESS_TOKEN}
+              onLoad={this._onMapLoad}
+            />
+          )}   
         </DeckGL>
-        
+        <InfoPanel data={selectedFeature} /> 
       </main>
     </div>
   );
